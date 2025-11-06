@@ -1,0 +1,5 @@
+package_name,
+repository_url,https://github.com/test/repo
+test_mode,invalid_boolean
+version,1.0.0
+max_depth,0

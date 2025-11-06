@@ -1,0 +1,5 @@
+package_name,react
+repository_url,/tmp/test_repo
+test_mode,true
+version,18.2.0
+max_depth,5
