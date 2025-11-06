@@ -29,6 +29,30 @@ type Package struct {
 	Dependencies []string
 }
 
+// Node представляет узел в графе зависимостей
+type Node struct {
+	Name         string
+	Version      string
+	Dependencies []string
+	Depth        int
+}
+
+// Graph представляет граф зависимостей
+type Graph struct {
+	Nodes         map[string]*Node // Карта пакетов (имя -> узел)
+	Edges         map[string][]string // Рёбра графа (имя -> список зависимостей)
+	Cycles        []string // Обнаруженные циклы
+	MaxDepth      int
+	PackageSource map[string][]Package // Кэш всех пакетов для быстрого поиска
+}
+
+// StackItem представляет элемент стека для итеративного DFS
+type StackItem struct {
+	PackageName string
+	Depth       int
+	Path        []string // Путь для обнаружения циклов
+}
+
 func LoadConfig(filename string) (*Config, error) {
 	// Проверка существования файла
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
@@ -240,7 +264,8 @@ func parseDependencies(depString string) []string {
 
 	// Регулярное выражение для извлечения имени пакета (до версии или альтернативы)
 	// Формат: package-name (>= version) | alternative, another-package
-	re := regexp.MustCompile(`([a-z0-9][a-z0-9+\-.]+)`)
+	// Поддерживаем как маленькие, так и заглавные буквы (для тестовых графов)
+	re := regexp.MustCompile(`([a-zA-Z0-9][a-zA-Z0-9+\-.]*)`)
 
 	// Разделяем по запятой (разные зависимости)
 	parts := strings.Split(depString, ",")
@@ -331,6 +356,246 @@ func getDirectDependencies(config *Config) ([]string, error) {
 	return pkg.Dependencies, nil
 }
 
+// buildDependencyGraph строит граф зависимостей используя итеративный DFS (без рекурсии)
+func buildDependencyGraph(config *Config) (*Graph, error) {
+	fmt.Println("\n=== Построение графа зависимостей ===")
+	fmt.Printf("Загрузка данных из: %s\n", config.RepositoryURL)
+	
+	// Загружаем файл Packages
+	reader, err := fetchPackagesFile(config.RepositoryURL, config.TestMode)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Закрываем reader, если это Closer
+	if closer, ok := reader.(io.Closer); ok {
+		defer closer.Close()
+	}
+	
+	fmt.Println("Парсинг данных о пакетах...")
+	
+	// Парсим файл
+	packages, err := parsePackagesFile(reader)
+	if err != nil {
+		return nil, err
+	}
+	
+	fmt.Printf("Найдено пакетов: %d\n", len(packages))
+	
+	// Создаём индекс пакетов для быстрого поиска
+	packageMap := make(map[string][]Package)
+	for _, pkg := range packages {
+		packageMap[pkg.Name] = append(packageMap[pkg.Name], pkg)
+	}
+	
+	// Инициализируем граф
+	graph := &Graph{
+		Nodes:         make(map[string]*Node),
+		Edges:         make(map[string][]string),
+		Cycles:        []string{},
+		MaxDepth:      config.MaxDepth,
+		PackageSource: packageMap,
+	}
+	
+	// Итеративный DFS с использованием стека
+	fmt.Printf("\nЗапуск DFS для пакета: %s (max_depth: %d)\n", config.PackageName, config.MaxDepth)
+	
+	stack := []StackItem{{
+		PackageName: config.PackageName,
+		Depth:       0,
+		Path:        []string{},
+	}}
+	
+	visited := make(map[string]bool)       // Полностью обработанные узлы
+	inProgress := make(map[string]bool)    // Узлы в процессе обработки (для обнаружения циклов)
+	
+	for len(stack) > 0 {
+		// Берём элемент из стека
+		item := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		
+		pkgName := item.PackageName
+		depth := item.Depth
+		path := item.Path
+		
+		// Проверка на цикл
+		cycleDetected := false
+		for _, p := range path {
+			if p == pkgName {
+				cycleStr := strings.Join(append(path, pkgName), " -> ")
+				// Добавляем цикл только если его еще нет
+				found := false
+				for _, existingCycle := range graph.Cycles {
+					if existingCycle == cycleStr {
+						found = true
+						break
+					}
+				}
+				if !found {
+					graph.Cycles = append(graph.Cycles, cycleStr)
+					fmt.Printf("  [!] Обнаружен цикл: %s\n", cycleStr)
+				}
+				cycleDetected = true
+				break
+			}
+		}
+		
+		// Пропускаем узел, если обнаружен цикл
+		if cycleDetected {
+			continue
+		}
+		
+		// Пропускаем, если уже посещали
+		if visited[pkgName] {
+			continue
+		}
+		
+		// Проверяем глубину
+		if depth > config.MaxDepth {
+			continue
+		}
+		
+		// Ищем пакет
+		pkgList, exists := packageMap[pkgName]
+		if !exists || len(pkgList) == 0 {
+			// Пакет не найден, добавляем узел без зависимостей
+			if _, nodeExists := graph.Nodes[pkgName]; !nodeExists {
+				graph.Nodes[pkgName] = &Node{
+					Name:         pkgName,
+					Version:      "unknown",
+					Dependencies: []string{},
+					Depth:        depth,
+				}
+			}
+			visited[pkgName] = true
+			continue
+		}
+		
+		// Берём первый найденный пакет (или с нужной версией)
+		var pkg Package
+		if config.Version != "" && pkgName == config.PackageName {
+			found := false
+			for _, p := range pkgList {
+				if p.Version == config.Version {
+					pkg = p
+					found = true
+					break
+				}
+			}
+			if !found {
+				pkg = pkgList[0]
+			}
+		} else {
+			pkg = pkgList[0]
+		}
+		
+		// Добавляем узел в граф
+		if _, exists := graph.Nodes[pkgName]; !exists {
+			graph.Nodes[pkgName] = &Node{
+				Name:         pkg.Name,
+				Version:      pkg.Version,
+				Dependencies: pkg.Dependencies,
+				Depth:        depth,
+			}
+			graph.Edges[pkgName] = pkg.Dependencies
+		}
+		
+		visited[pkgName] = true
+		inProgress[pkgName] = true
+		
+		// Добавляем зависимости в стек (если не превышена глубина)
+		if depth < config.MaxDepth {
+			newPath := append([]string{}, path...)
+			newPath = append(newPath, pkgName)
+			
+			for _, dep := range pkg.Dependencies {
+				// Проверяем, создает ли эта зависимость цикл
+				createsCycle := false
+				for _, p := range newPath {
+					if p == dep {
+						cycleStr := strings.Join(append(newPath, dep), " -> ")
+						// Проверяем, не добавляли ли мы уже этот цикл
+						found := false
+						for _, existingCycle := range graph.Cycles {
+							if existingCycle == cycleStr {
+								found = true
+								break
+							}
+						}
+						if !found {
+							graph.Cycles = append(graph.Cycles, cycleStr)
+							fmt.Printf("  [!] Обнаружен цикл: %s\n", cycleStr)
+						}
+						createsCycle = true
+						break
+					}
+				}
+				
+				if !createsCycle && !visited[dep] {
+					stack = append(stack, StackItem{
+						PackageName: dep,
+						Depth:       depth + 1,
+						Path:        newPath,
+					})
+				}
+			}
+		}
+		
+		inProgress[pkgName] = false
+	}
+	
+	fmt.Printf("\nГраф построен:\n")
+	fmt.Printf("  - Узлов: %d\n", len(graph.Nodes))
+	fmt.Printf("  - Рёбер: %d\n", len(graph.Edges))
+	fmt.Printf("  - Обнаружено циклов: %d\n", len(graph.Cycles))
+	
+	return graph, nil
+}
+
+// printGraph выводит граф зависимостей в удобочитаемом виде
+func printGraph(graph *Graph, rootPackage string) {
+	fmt.Println("\n=== Граф зависимостей ===")
+	
+	// Рекурсивная печать дерева
+	printed := make(map[string]bool)
+	printNode(graph, rootPackage, 0, printed)
+	
+	// Выводим информацию о циклах
+	if len(graph.Cycles) > 0 {
+		fmt.Println("\n=== Обнаруженные циклы ===")
+		for i, cycle := range graph.Cycles {
+			fmt.Printf("%d. %s\n", i+1, cycle)
+		}
+	}
+}
+
+// printNode рекурсивно выводит узел и его зависимости
+func printNode(graph *Graph, pkgName string, indent int, printed map[string]bool) {
+	prefix := strings.Repeat("  ", indent)
+	
+	node, exists := graph.Nodes[pkgName]
+	if !exists {
+		fmt.Printf("%s- %s (не найден)\n", prefix, pkgName)
+		return
+	}
+	
+	// Проверяем, был ли узел уже напечатан (для избежания бесконечных циклов)
+	if printed[pkgName] {
+		fmt.Printf("%s- %s [%s] (depth: %d) [уже показан]\n", prefix, node.Name, node.Version, node.Depth)
+		return
+	}
+	
+	fmt.Printf("%s- %s [%s] (depth: %d)\n", prefix, node.Name, node.Version, node.Depth)
+	printed[pkgName] = true
+	
+	// Печатаем зависимости
+	if node.Depth < graph.MaxDepth {
+		for _, dep := range node.Dependencies {
+			printNode(graph, dep, indent+1, printed)
+		}
+	}
+}
+
 func main() {
 	configFile := "config.csv"
 
@@ -338,31 +603,21 @@ func main() {
 		configFile = os.Args[1]
 	}
 
-	fmt.Printf("Загрузка конфигурации из файла: %s\n\n", configFile)
-
 	config, err := LoadConfig(configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Ошибка: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("Конфигурация успешно загружена:")
-	// Получаем прямые зависимости
-	dependencies, err := getDirectDependencies(config)
+
+	// Строим полный граф зависимостей
+	graph, err := buildDependencyGraph(config)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "\nОшибка получения зависимостей: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nОшибка построения графа: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Выводим прямые зависимости
-	fmt.Println("\n=== Прямые зависимости ===")
-	if len(dependencies) == 0 {
-		fmt.Println("Зависимости отсутствуют")
-	} else {
-		fmt.Printf("Всего зависимостей: %d\n\n", len(dependencies))
-		for i, dep := range dependencies {
-			fmt.Printf("%d. %s\n", i+1, dep)
-		}
-	}
+	// Выводим граф
+	printGraph(graph, config.PackageName)
 
 	fmt.Println("\n=== Анализ завершен успешно! ===")
 }

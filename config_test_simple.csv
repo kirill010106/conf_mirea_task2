@@ -1,0 +1,5 @@
+package_name,A
+repository_url,test_repos/simple_graph.txt
+test_mode,true
+version,1.0
+max_depth,3

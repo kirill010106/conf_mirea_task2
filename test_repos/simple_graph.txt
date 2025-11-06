@@ -1,0 +1,23 @@
+Package: A
+Version: 1.0
+Depends: B, C
+
+Package: B
+Version: 1.0
+Depends: D
+
+Package: C
+Version: 1.0
+Depends: D, E
+
+Package: D
+Version: 1.0
+Depends: 
+
+Package: E
+Version: 1.0
+Depends: F
+
+Package: F
+Version: 1.0
+Depends: 
