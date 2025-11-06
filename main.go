@@ -793,11 +793,11 @@ func saveGraphvizDOT(graph *Graph, rootPackage, filename string) error {
 
 	// Пытаемся сгенерировать PNG с помощью Graphviz
 	pngFile := filename + ".png"
-	
+
 	// Пробуем выполнить команду dot
 	cmd := exec.Command("dot", "-Tpng", dotFile, "-o", pngFile)
 	err = cmd.Run()
-	
+
 	if err != nil {
 		// Graphviz не установлен или команда не выполнилась
 		fmt.Printf("\n⚠ Graphviz не найден или произошла ошибка: %v\n", err)
@@ -810,12 +810,12 @@ func saveGraphvizDOT(graph *Graph, rootPackage, filename string) error {
 	} else {
 		// PNG успешно сгенерирован
 		fmt.Printf("✓ PNG файл создан: %s\n", pngFile)
-		
+
 		// Также создаем SVG версию для лучшего качества
 		svgFile := filename + ".svg"
 		svgCmd := exec.Command("dot", "-Tsvg", dotFile, "-o", svgFile)
 		svgErr := svgCmd.Run()
-		
+
 		if svgErr == nil {
 			fmt.Printf("✓ SVG файл создан: %s\n", svgFile)
 		}
