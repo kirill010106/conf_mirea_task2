@@ -1,0 +1,126 @@
+digraph dependencies {
+  // Настройки графа
+  rankdir=LR;
+  node [shape=box, style=filled];
+  edge [color=gray];
+
+  // Узлы
+  "libpython3.8-minimal" [label="libpython3.8-minimal\n[3.8.2-1ubuntu1]", fillcolor="lightyellow"];
+  "xxd" [label="xxd\n[2:8.1.2269-1ubuntu5]", fillcolor="lightblue"];
+  "libuuid1" [label="libuuid1\n[2.34-0.1ubuntu9]", fillcolor="lightyellow"];
+  "libmpdec2" [label="libmpdec2\n[2.4.2-3]", fillcolor="lightyellow"];
+  "liblzma5" [label="liblzma5\n[5.2.4-1]", fillcolor="lightyellow"];
+  "vim" [label="vim\n[2:8.1.2269-1ubuntu5]\n(целевой пакет)", fillcolor="lightgreen"];
+  "libgcc-s1" [label="libgcc-s1\n[10-20200411-0ubuntu1]", fillcolor="lightyellow"];
+  "libselinux1" [label="libselinux1\n[3.0-1build2]", fillcolor="lightblue"];
+  "zlib1g" [label="zlib1g\n[1:1.2.11.dfsg-2ubuntu1]", fillcolor="lightblue"];
+  "libvorbisfile3" [label="libvorbisfile3\n[1.3.6-2ubuntu1]", fillcolor="lightblue"];
+  "libltdl7" [label="libltdl7\n[2.4.6-14]", fillcolor="lightblue"];
+  "libasound2-data" [label="libasound2-data\n[1.2.2-2.1]", fillcolor="lightyellow"];
+  "libtinfo6" [label="libtinfo6\n[6.2-0ubuntu2]", fillcolor="lightblue"];
+  "libpcre2-8-0" [label="libpcre2-8-0\n[10.34-7]", fillcolor="lightblue"];
+  "libexpat1" [label="libexpat1\n[2.2.9-1build1]", fillcolor="lightblue"];
+  "libsqlite3-0" [label="libsqlite3-0\n[3.31.1-4]", fillcolor="lightyellow"];
+  "libreadline8" [label="libreadline8\n[8.0-4]", fillcolor="lightyellow"];
+  "sound-theme-freedesktop" [label="sound-theme-freedesktop\n[0.8-2ubuntu1]", fillcolor="lightblue"];
+  "libncursesw6" [label="libncursesw6\n[6.2-0ubuntu2]", fillcolor="lightyellow"];
+  "libffi7" [label="libffi7\n[3.3-4]", fillcolor="lightyellow"];
+  "libgpm2" [label="libgpm2\n[1.20.7-5]", fillcolor="lightblue"];
+  "vim-runtime" [label="vim-runtime\n[2:8.1.2269-1ubuntu5]", fillcolor="lightblue"];
+  "vim-common" [label="vim-common\n[2:8.1.2269-1ubuntu5]", fillcolor="lightblue"];
+  "libcrypt1" [label="libcrypt1\n[1:4.4.10-10ubuntu4]", fillcolor="lightyellow"];
+  "libpython3.8-stdlib" [label="libpython3.8-stdlib\n[3.8.2-1ubuntu1]", fillcolor="lightblue"];
+  "libdb5.3" [label="libdb5.3\n[5.3.28+dfsg1-0.6ubuntu2]", fillcolor="lightyellow"];
+  "libbz2-1.0" [label="libbz2-1.0\n[1.0.8-2]", fillcolor="lightyellow"];
+  "libasound2" [label="libasound2\n[1.2.2-2.1]", fillcolor="lightblue"];
+  "libpython3.8" [label="libpython3.8\n[3.8.2-1ubuntu1]", fillcolor="lightblue"];
+  "mime-support" [label="mime-support\n[3.64ubuntu1]", fillcolor="lightyellow"];
+  "libc6" [label="libc6\n[2.31-0ubuntu9]", fillcolor="lightblue"];
+  "libcanberra0" [label="libcanberra0\n[0.30-7ubuntu1]", fillcolor="lightblue"];
+  "libvorbis0a" [label="libvorbis0a\n[1.3.6-2ubuntu1]", fillcolor="lightyellow"];
+  "libogg0" [label="libogg0\n[1.3.4-0ubuntu1]", fillcolor="lightyellow"];
+  "libtdb1" [label="libtdb1\n[1.4.2-3build1]", fillcolor="lightblue"];
+  "libacl1" [label="libacl1\n[2.2.53-6]", fillcolor="lightblue"];
+
+  // Рёбра (зависимости)
+  "vim" -> "vim-common";
+  "vim" -> "vim-runtime";
+  "vim" -> "libacl1";
+  "vim" -> "libc6";
+  "vim" -> "libcanberra0";
+  "vim" -> "libgpm2";
+  "vim" -> "libpython3.8";
+  "vim" -> "libselinux1";
+  "vim" -> "libtinfo6";
+  "libbz2-1.0" -> "libc6";
+  "libvorbis0a" -> "libc6";
+  "libvorbis0a" -> "libogg0";
+  "libgpm2" -> "libc6";
+  "libcanberra0" -> "libasound2";
+  "libcanberra0" -> "libc6";
+  "libcanberra0" -> "libltdl7";
+  "libcanberra0" -> "libtdb1";
+  "libcanberra0" -> "libvorbisfile3";
+  "libcanberra0" -> "sound-theme-freedesktop";
+  "libogg0" -> "libc6";
+  "zlib1g" -> "libc6";
+  "libuuid1" -> "libc6";
+  "libpython3.8-minimal" -> "libc6";
+  "libtdb1" -> "libc6";
+  "libcrypt1" -> "libc6";
+  "libpcre2-8-0" -> "libc6";
+  "libreadline8" -> "libc6";
+  "libreadline8" -> "libtinfo6";
+  "libacl1" -> "libc6";
+  "libpython3.8" -> "libpython3.8-stdlib";
+  "libpython3.8" -> "libc6";
+  "libpython3.8" -> "libexpat1";
+  "libpython3.8" -> "zlib1g";
+  "libncursesw6" -> "libtinfo6";
+  "libncursesw6" -> "libc6";
+  "liblzma5" -> "libc6";
+  "libdb5.3" -> "libc6";
+  "libasound2" -> "libasound2-data";
+  "libasound2" -> "libc6";
+  "vim-common" -> "xxd";
+  "libselinux1" -> "libc6";
+  "libselinux1" -> "libpcre2-8-0";
+  "libexpat1" -> "libc6";
+  "libpython3.8-stdlib" -> "libpython3.8-minimal";
+  "libpython3.8-stdlib" -> "mime-support";
+  "libpython3.8-stdlib" -> "libbz2-1.0";
+  "libpython3.8-stdlib" -> "libc6";
+  "libpython3.8-stdlib" -> "libcrypt1";
+  "libpython3.8-stdlib" -> "libdb5.3";
+  "libpython3.8-stdlib" -> "libffi7";
+  "libpython3.8-stdlib" -> "liblzma5";
+  "libpython3.8-stdlib" -> "libmpdec2";
+  "libpython3.8-stdlib" -> "libncursesw6";
+  "libpython3.8-stdlib" -> "libreadline8";
+  "libpython3.8-stdlib" -> "libsqlite3-0";
+  "libpython3.8-stdlib" -> "libtinfo6";
+  "libpython3.8-stdlib" -> "libuuid1";
+  "libltdl7" -> "libc6";
+  "libc6" -> "libgcc-s1";
+  "libc6" -> "libcrypt1";
+  "libgcc-s1" -> "libc6";
+  "libffi7" -> "libc6";
+  "libvorbisfile3" -> "libc6";
+  "libvorbisfile3" -> "libogg0";
+  "libvorbisfile3" -> "libvorbis0a";
+  "libtinfo6" -> "libc6";
+  "libsqlite3-0" -> "libc6";
+  "libmpdec2" -> "libc6";
+  "xxd" -> "libc6";
+
+  // Легенда
+  subgraph cluster_legend {
+    label="Легенда";
+    style=filled;
+    color=lightgrey;
+    node [shape=box, style=filled];
+    legend_target [label="Целевой пакет", fillcolor=lightgreen];
+    legend_dep [label="Зависимость", fillcolor=lightblue];
+    legend_max [label="Макс. глубина", fillcolor=lightyellow];
+  }
+}

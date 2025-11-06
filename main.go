@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -698,6 +699,131 @@ func printInstallOrder(graph *Graph, rootPackage string) {
 	fmt.Println("- Целевой пакет устанавливается последним")
 }
 
+// generateGraphvizDOT создает представление графа в формате Graphviz DOT
+func generateGraphvizDOT(graph *Graph, rootPackage string) string {
+	var sb strings.Builder
+
+	sb.WriteString("digraph dependencies {\n")
+	sb.WriteString("  // Настройки графа\n")
+	sb.WriteString("  rankdir=LR;\n")
+	sb.WriteString("  node [shape=box, style=filled];\n")
+	sb.WriteString("  edge [color=gray];\n\n")
+
+	// Определяем узлы в цикле
+	cycleNodes := make(map[string]bool)
+	for _, cycle := range graph.Cycles {
+		parts := strings.Split(cycle, " -> ")
+		for _, part := range parts {
+			cycleNodes[part] = true
+		}
+	}
+
+	// Выводим узлы с атрибутами
+	sb.WriteString("  // Узлы\n")
+	for nodeName, node := range graph.Nodes {
+		label := fmt.Sprintf("%s\\n[%s]", node.Name, node.Version)
+		color := "lightblue"
+
+		if nodeName == rootPackage {
+			color = "lightgreen"
+			label = fmt.Sprintf("%s\\n[%s]\\n(целевой пакет)", node.Name, node.Version)
+		} else if cycleNodes[nodeName] {
+			color = "lightcoral"
+		} else if node.Depth == graph.MaxDepth {
+			color = "lightyellow"
+		}
+
+		sb.WriteString(fmt.Sprintf("  \"%s\" [label=\"%s\", fillcolor=\"%s\"];\n",
+			nodeName, label, color))
+	}
+
+	sb.WriteString("\n  // Рёбра (зависимости)\n")
+	// Выводим рёбра
+	for nodeName, deps := range graph.Edges {
+		for _, dep := range deps {
+			if graph.Nodes[dep] != nil {
+				// Проверяем, является ли это ребро частью цикла
+				edgeStyle := ""
+				for _, cycle := range graph.Cycles {
+					if strings.Contains(cycle, nodeName+" -> "+dep) ||
+						strings.Contains(cycle, dep+" -> "+nodeName) {
+						edgeStyle = " [color=red, penwidth=2]"
+						break
+					}
+				}
+				sb.WriteString(fmt.Sprintf("  \"%s\" -> \"%s\"%s;\n",
+					nodeName, dep, edgeStyle))
+			}
+		}
+	}
+
+	// Добавляем легенду
+	sb.WriteString("\n  // Легенда\n")
+	sb.WriteString("  subgraph cluster_legend {\n")
+	sb.WriteString("    label=\"Легенда\";\n")
+	sb.WriteString("    style=filled;\n")
+	sb.WriteString("    color=lightgrey;\n")
+	sb.WriteString("    node [shape=box, style=filled];\n")
+	sb.WriteString("    legend_target [label=\"Целевой пакет\", fillcolor=lightgreen];\n")
+	sb.WriteString("    legend_dep [label=\"Зависимость\", fillcolor=lightblue];\n")
+	if len(graph.Cycles) > 0 {
+		sb.WriteString("    legend_cycle [label=\"Узел в цикле\", fillcolor=lightcoral];\n")
+	}
+	sb.WriteString("    legend_max [label=\"Макс. глубина\", fillcolor=lightyellow];\n")
+	sb.WriteString("  }\n")
+
+	sb.WriteString("}\n")
+
+	return sb.String()
+}
+
+// saveGraphvizDOT сохраняет DOT-файл и пытается сгенерировать PNG изображение
+func saveGraphvizDOT(graph *Graph, rootPackage, filename string) error {
+	dotContent := generateGraphvizDOT(graph, rootPackage)
+
+	// Сохраняем DOT файл
+	dotFile := filename + ".dot"
+	err := os.WriteFile(dotFile, []byte(dotContent), 0644)
+	if err != nil {
+		return fmt.Errorf("ошибка записи DOT файла: %v", err)
+	}
+
+	fmt.Printf("\n=== Визуализация графа ===\n")
+	fmt.Printf("DOT файл сохранен: %s\n", dotFile)
+
+	// Пытаемся сгенерировать PNG с помощью Graphviz
+	pngFile := filename + ".png"
+	
+	// Пробуем выполнить команду dot
+	cmd := exec.Command("dot", "-Tpng", dotFile, "-o", pngFile)
+	err = cmd.Run()
+	
+	if err != nil {
+		// Graphviz не установлен или команда не выполнилась
+		fmt.Printf("\n⚠ Graphviz не найден или произошла ошибка: %v\n", err)
+		fmt.Println("\nДля генерации изображения выполните:")
+		fmt.Printf("  dot -Tpng %s -o %s\n", dotFile, pngFile)
+		fmt.Println("\nИли установите Graphviz:")
+		fmt.Println("  - Windows: choco install graphviz")
+		fmt.Println("  - Linux: sudo apt install graphviz")
+		fmt.Println("  - macOS: brew install graphviz")
+	} else {
+		// PNG успешно сгенерирован
+		fmt.Printf("✓ PNG файл создан: %s\n", pngFile)
+		
+		// Также создаем SVG версию для лучшего качества
+		svgFile := filename + ".svg"
+		svgCmd := exec.Command("dot", "-Tsvg", dotFile, "-o", svgFile)
+		svgErr := svgCmd.Run()
+		
+		if svgErr == nil {
+			fmt.Printf("✓ SVG файл создан: %s\n", svgFile)
+		}
+	}
+
+	return nil
+}
+
 func main() {
 	configFile := "config.csv"
 
@@ -723,6 +849,13 @@ func main() {
 
 	// Выводим порядок установки пакетов
 	printInstallOrder(graph, config.PackageName)
+
+	// Генерируем визуализацию
+	outputFile := fmt.Sprintf("graph_%s", config.PackageName)
+	err = saveGraphvizDOT(graph, config.PackageName, outputFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "\nПредупреждение: %v\n", err)
+	}
 
 	fmt.Println("\n=== Анализ завершен успешно! ===")
 }

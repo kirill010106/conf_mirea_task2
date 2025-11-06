@@ -1,0 +1,49 @@
+digraph dependencies {
+  // Настройки графа
+  rankdir=LR;
+  node [shape=box, style=filled];
+  edge [color=gray];
+
+  // Узлы
+  "libuuid1" [label="libuuid1\n[2.34-0.1ubuntu9]", fillcolor="lightblue"];
+  "debconf" [label="debconf\n[1.5.73]", fillcolor="lightyellow"];
+  "libunistring2" [label="libunistring2\n[0.9.10-2]", fillcolor="lightyellow"];
+  "libpcre2-8-0" [label="libpcre2-8-0\n[10.34-7]", fillcolor="lightblue"];
+  "wget" [label="wget\n[1.20.3-1ubuntu1]\n(целевой пакет)", fillcolor="lightgreen"];
+  "zlib1g" [label="zlib1g\n[1:1.2.11.dfsg-2ubuntu1]", fillcolor="lightblue"];
+  "libssl1.1" [label="libssl1.1\n[1.1.1f-1ubuntu2]", fillcolor="lightblue"];
+  "libpsl5" [label="libpsl5\n[0.21.0-1ubuntu1]", fillcolor="lightblue"];
+  "libidn2-0" [label="libidn2-0\n[2.2.0-2]", fillcolor="lightyellow"];
+  "libc6" [label="libc6\n[2.31-0ubuntu9]", fillcolor="lightyellow"];
+
+  // Рёбра (зависимости)
+  "zlib1g" -> "libc6";
+  "libpsl5" -> "libidn2-0";
+  "libpsl5" -> "libc6";
+  "libpsl5" -> "libunistring2";
+  "libunistring2" -> "libc6";
+  "libpcre2-8-0" -> "libc6";
+  "wget" -> "libc6";
+  "wget" -> "libidn2-0";
+  "wget" -> "libpcre2-8-0";
+  "wget" -> "libpsl5";
+  "wget" -> "libssl1.1";
+  "wget" -> "libuuid1";
+  "wget" -> "zlib1g";
+  "libuuid1" -> "libc6";
+  "libssl1.1" -> "libc6";
+  "libssl1.1" -> "debconf";
+  "libidn2-0" -> "libc6";
+  "libidn2-0" -> "libunistring2";
+
+  // Легенда
+  subgraph cluster_legend {
+    label="Легенда";
+    style=filled;
+    color=lightgrey;
+    node [shape=box, style=filled];
+    legend_target [label="Целевой пакет", fillcolor=lightgreen];
+    legend_dep [label="Зависимость", fillcolor=lightblue];
+    legend_max [label="Макс. глубина", fillcolor=lightyellow];
+  }
+}

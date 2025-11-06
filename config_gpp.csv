@@ -1,0 +1,5 @@
+package_name,g++
+repository_url,http://archive.ubuntu.com/ubuntu/dists/focal/main/binary-amd64/Packages.gz
+test_mode,false
+version,
+max_depth,10

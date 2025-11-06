@@ -1,0 +1,33 @@
+digraph dependencies {
+  // Настройки графа
+  rankdir=LR;
+  node [shape=box, style=filled];
+  edge [color=gray];
+
+  // Узлы
+  "F" [label="F\n[1.0]", fillcolor="lightyellow"];
+  "D" [label="D\n[1.0]", fillcolor="lightblue"];
+  "B" [label="B\n[1.0]", fillcolor="lightblue"];
+  "A" [label="A\n[1.0]\n(целевой пакет)", fillcolor="lightgreen"];
+  "C" [label="C\n[1.0]", fillcolor="lightblue"];
+  "E" [label="E\n[1.0]", fillcolor="lightblue"];
+
+  // Рёбра (зависимости)
+  "A" -> "B";
+  "A" -> "C";
+  "C" -> "D";
+  "C" -> "E";
+  "E" -> "F";
+  "B" -> "D";
+
+  // Легенда
+  subgraph cluster_legend {
+    label="Легенда";
+    style=filled;
+    color=lightgrey;
+    node [shape=box, style=filled];
+    legend_target [label="Целевой пакет", fillcolor=lightgreen];
+    legend_dep [label="Зависимость", fillcolor=lightblue];
+    legend_max [label="Макс. глубина", fillcolor=lightyellow];
+  }
+}
