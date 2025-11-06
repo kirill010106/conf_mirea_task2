@@ -39,9 +39,9 @@ type Node struct {
 
 // Graph представляет граф зависимостей
 type Graph struct {
-	Nodes         map[string]*Node // Карта пакетов (имя -> узел)
+	Nodes         map[string]*Node    // Карта пакетов (имя -> узел)
 	Edges         map[string][]string // Рёбра графа (имя -> список зависимостей)
-	Cycles        []string // Обнаруженные циклы
+	Cycles        []string            // Обнаруженные циклы
 	MaxDepth      int
 	PackageSource map[string][]Package // Кэш всех пакетов для быстрого поиска
 }
@@ -360,34 +360,34 @@ func getDirectDependencies(config *Config) ([]string, error) {
 func buildDependencyGraph(config *Config) (*Graph, error) {
 	fmt.Println("\n=== Построение графа зависимостей ===")
 	fmt.Printf("Загрузка данных из: %s\n", config.RepositoryURL)
-	
+
 	// Загружаем файл Packages
 	reader, err := fetchPackagesFile(config.RepositoryURL, config.TestMode)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Закрываем reader, если это Closer
 	if closer, ok := reader.(io.Closer); ok {
 		defer closer.Close()
 	}
-	
+
 	fmt.Println("Парсинг данных о пакетах...")
-	
+
 	// Парсим файл
 	packages, err := parsePackagesFile(reader)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	fmt.Printf("Найдено пакетов: %d\n", len(packages))
-	
+
 	// Создаём индекс пакетов для быстрого поиска
 	packageMap := make(map[string][]Package)
 	for _, pkg := range packages {
 		packageMap[pkg.Name] = append(packageMap[pkg.Name], pkg)
 	}
-	
+
 	// Инициализируем граф
 	graph := &Graph{
 		Nodes:         make(map[string]*Node),
@@ -396,28 +396,28 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 		MaxDepth:      config.MaxDepth,
 		PackageSource: packageMap,
 	}
-	
+
 	// Итеративный DFS с использованием стека
 	fmt.Printf("\nЗапуск DFS для пакета: %s (max_depth: %d)\n", config.PackageName, config.MaxDepth)
-	
+
 	stack := []StackItem{{
 		PackageName: config.PackageName,
 		Depth:       0,
 		Path:        []string{},
 	}}
-	
-	visited := make(map[string]bool)       // Полностью обработанные узлы
-	inProgress := make(map[string]bool)    // Узлы в процессе обработки (для обнаружения циклов)
-	
+
+	visited := make(map[string]bool)    // Полностью обработанные узлы
+	inProgress := make(map[string]bool) // Узлы в процессе обработки (для обнаружения циклов)
+
 	for len(stack) > 0 {
 		// Берём элемент из стека
 		item := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
-		
+
 		pkgName := item.PackageName
 		depth := item.Depth
 		path := item.Path
-		
+
 		// Проверка на цикл
 		cycleDetected := false
 		for _, p := range path {
@@ -439,22 +439,22 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 				break
 			}
 		}
-		
+
 		// Пропускаем узел, если обнаружен цикл
 		if cycleDetected {
 			continue
 		}
-		
+
 		// Пропускаем, если уже посещали
 		if visited[pkgName] {
 			continue
 		}
-		
+
 		// Проверяем глубину
 		if depth > config.MaxDepth {
 			continue
 		}
-		
+
 		// Ищем пакет
 		pkgList, exists := packageMap[pkgName]
 		if !exists || len(pkgList) == 0 {
@@ -470,7 +470,7 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 			visited[pkgName] = true
 			continue
 		}
-		
+
 		// Берём первый найденный пакет (или с нужной версией)
 		var pkg Package
 		if config.Version != "" && pkgName == config.PackageName {
@@ -488,7 +488,7 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 		} else {
 			pkg = pkgList[0]
 		}
-		
+
 		// Добавляем узел в граф
 		if _, exists := graph.Nodes[pkgName]; !exists {
 			graph.Nodes[pkgName] = &Node{
@@ -499,15 +499,15 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 			}
 			graph.Edges[pkgName] = pkg.Dependencies
 		}
-		
+
 		visited[pkgName] = true
 		inProgress[pkgName] = true
-		
+
 		// Добавляем зависимости в стек (если не превышена глубина)
 		if depth < config.MaxDepth {
 			newPath := append([]string{}, path...)
 			newPath = append(newPath, pkgName)
-			
+
 			for _, dep := range pkg.Dependencies {
 				// Проверяем, создает ли эта зависимость цикл
 				createsCycle := false
@@ -530,7 +530,7 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 						break
 					}
 				}
-				
+
 				if !createsCycle && !visited[dep] {
 					stack = append(stack, StackItem{
 						PackageName: dep,
@@ -540,26 +540,26 @@ func buildDependencyGraph(config *Config) (*Graph, error) {
 				}
 			}
 		}
-		
+
 		inProgress[pkgName] = false
 	}
-	
+
 	fmt.Printf("\nГраф построен:\n")
 	fmt.Printf("  - Узлов: %d\n", len(graph.Nodes))
 	fmt.Printf("  - Рёбер: %d\n", len(graph.Edges))
 	fmt.Printf("  - Обнаружено циклов: %d\n", len(graph.Cycles))
-	
+
 	return graph, nil
 }
 
 // printGraph выводит граф зависимостей в удобочитаемом виде
 func printGraph(graph *Graph, rootPackage string) {
 	fmt.Println("\n=== Граф зависимостей ===")
-	
+
 	// Рекурсивная печать дерева
 	printed := make(map[string]bool)
 	printNode(graph, rootPackage, 0, printed)
-	
+
 	// Выводим информацию о циклах
 	if len(graph.Cycles) > 0 {
 		fmt.Println("\n=== Обнаруженные циклы ===")
@@ -572,28 +572,130 @@ func printGraph(graph *Graph, rootPackage string) {
 // printNode рекурсивно выводит узел и его зависимости
 func printNode(graph *Graph, pkgName string, indent int, printed map[string]bool) {
 	prefix := strings.Repeat("  ", indent)
-	
+
 	node, exists := graph.Nodes[pkgName]
 	if !exists {
 		fmt.Printf("%s- %s (не найден)\n", prefix, pkgName)
 		return
 	}
-	
+
 	// Проверяем, был ли узел уже напечатан (для избежания бесконечных циклов)
 	if printed[pkgName] {
 		fmt.Printf("%s- %s [%s] (depth: %d) [уже показан]\n", prefix, node.Name, node.Version, node.Depth)
 		return
 	}
-	
+
 	fmt.Printf("%s- %s [%s] (depth: %d)\n", prefix, node.Name, node.Version, node.Depth)
 	printed[pkgName] = true
-	
+
 	// Печатаем зависимости
 	if node.Depth < graph.MaxDepth {
 		for _, dep := range node.Dependencies {
 			printNode(graph, dep, indent+1, printed)
 		}
 	}
+}
+
+// getInstallOrder выполняет топологическую сортировку графа зависимостей
+// Возвращает порядок установки пакетов (от зависимостей к зависимым)
+func getInstallOrder(graph *Graph, rootPackage string) ([]string, error) {
+	// Если есть циклы, топологическая сортировка невозможна
+	if len(graph.Cycles) > 0 {
+		return nil, fmt.Errorf("невозможно определить порядок установки: обнаружены циклические зависимости")
+	}
+
+	// Подсчитываем входящие степени (in-degree) для каждого узла
+	inDegree := make(map[string]int)
+	allNodes := make(map[string]bool)
+
+	// Инициализируем все узлы
+	for nodeName := range graph.Nodes {
+		inDegree[nodeName] = 0
+		allNodes[nodeName] = true
+	}
+
+	// Подсчитываем входящие степени
+	// Если узел A зависит от B, то у A увеличивается входящая степень
+	for nodeName, node := range graph.Nodes {
+		for _, dep := range node.Dependencies {
+			if allNodes[dep] {
+				inDegree[nodeName]++
+			}
+		}
+	}
+
+	// Алгоритм Кана для топологической сортировки
+	queue := []string{}
+
+	// Добавляем в очередь все узлы с нулевой входящей степенью
+	for nodeName := range allNodes {
+		if inDegree[nodeName] == 0 {
+			queue = append(queue, nodeName)
+		}
+	}
+
+	result := []string{}
+
+	for len(queue) > 0 {
+		// Берем узел из очереди (это узел без зависимостей или с уже установленными зависимостями)
+		current := queue[0]
+		queue = queue[1:]
+
+		result = append(result, current)
+
+		// Для всех узлов, которые зависят от current, уменьшаем входящую степень
+		for nodeName, node := range graph.Nodes {
+			// Проверяем, зависит ли nodeName от current
+			for _, dep := range node.Dependencies {
+				if dep == current {
+					inDegree[nodeName]--
+					// Если все зависимости nodeName удовлетворены, добавляем в очередь
+					if inDegree[nodeName] == 0 {
+						queue = append(queue, nodeName)
+					}
+					break
+				}
+			}
+		}
+	}
+
+	// Проверяем, все ли узлы были обработаны
+	if len(result) != len(allNodes) {
+		return nil, fmt.Errorf("обнаружен цикл при топологической сортировке")
+	}
+
+	return result, nil
+}
+
+// printInstallOrder выводит порядок установки пакетов
+func printInstallOrder(graph *Graph, rootPackage string) {
+	fmt.Println("\n=== Порядок установки пакетов ===")
+
+	order, err := getInstallOrder(graph, rootPackage)
+	if err != nil {
+		fmt.Printf("Ошибка: %v\n", err)
+		fmt.Println("\nПричина: при наличии циклических зависимостей невозможно")
+		fmt.Println("определить корректный порядок установки пакетов.")
+		return
+	}
+
+	fmt.Printf("Всего пакетов для установки: %d\n\n", len(order))
+	fmt.Println("Порядок установки (от базовых зависимостей к зависимым):")
+	fmt.Println()
+
+	for i, pkgName := range order {
+		node := graph.Nodes[pkgName]
+		marker := ""
+		if pkgName == rootPackage {
+			marker = " ← целевой пакет"
+		}
+		fmt.Printf("%3d. %s [%s]%s\n", i+1, node.Name, node.Version, marker)
+	}
+
+	fmt.Println("\nПримечание:")
+	fmt.Println("- Пакеты установлены в порядке разрешения зависимостей")
+	fmt.Println("- Базовые библиотеки устанавливаются первыми")
+	fmt.Println("- Целевой пакет устанавливается последним")
 }
 
 func main() {
@@ -618,6 +720,9 @@ func main() {
 
 	// Выводим граф
 	printGraph(graph, config.PackageName)
+
+	// Выводим порядок установки пакетов
+	printInstallOrder(graph, config.PackageName)
 
 	fmt.Println("\n=== Анализ завершен успешно! ===")
 }
