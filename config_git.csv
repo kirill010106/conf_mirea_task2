@@ -1,5 +1,5 @@
-package_name,curl
+package_name,git
 repository_url,http://archive.ubuntu.com/ubuntu/dists/focal/main/binary-amd64/Packages.gz
 test_mode,false
-version,7.68.0-1ubuntu2.24
+version,
 max_depth,3
